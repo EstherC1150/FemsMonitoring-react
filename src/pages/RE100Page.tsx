@@ -1,3 +1,4 @@
+import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts";
 
 export function RE100Page() {
   const months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
@@ -6,22 +7,20 @@ export function RE100Page() {
   const barsSelf = [50, 52, 45, 48, 55, 50, 45, 48, 55, 52, 45, 50];
   const lineCost = [135, 138, 136, 139, 142, 145, 148, 147, 144, 142, 139, 138];
 
-  const chartW = 1400;
-  const chartH = 280;
-  const padX = 56;
-  const padY = 22;
-  const barW = 38;
+  const chartData = months.map((m, i) => ({
+    name: m,
+    ppa: barsPPA[i],
+    rec: barsREC[i],
+    self: barsSelf[i],
+    cost: lineCost[i]
+  }));
 
-  const xStep = (chartW - padX * 2) / 12;
-
-  const maxBar = 500;
-  const maxLine = 160;
-
-  // Compute Line points
-  const getLineX = (i: number) => padX + xStep * i + xStep / 2;
-  const getLineY = (val: number) => chartH - padY - (val / maxLine) * (chartH - padY * 2);
-
-  const linePath = lineCost.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getLineX(i)} ${getLineY(v)}`).join(' ');
+  const pieData = [
+    { name: "PPA", value: 45, color: "#2563eb" },
+    { name: "REC", value: 25, color: "#f59e0b" },
+    { name: "자가발전", value: 20, color: "#16a34a" },
+    { name: "기타", value: 10, color: "#7c3aed" }
+  ];
 
   return (
     <div className="flex flex-col gap-5 p-1">
@@ -109,71 +108,69 @@ export function RE100Page() {
             </span>
           </div>
           
-          <svg style={{ overflow: "visible", height: "280px", width: "100%" }} viewBox={`0 0 ${chartW} ${chartH}`}>
-            {/* Left Y Axis & Grid */}
-            {[0, 100, 200, 300, 400].map((val) => {
-              const y = chartH - padY - (val / maxBar) * (chartH - padY * 2);
-              return (
-                <g key={`l-grid-${val}`}>
-                  <line x1={padX} x2={chartW - padX} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={padX - 5} y={y + 4} textAnchor="end" fontSize="10" fill="#6b7280">{val}</text>
-                </g>
-              );
-            })}
-
-            {/* Right Y Axis */}
-            {[0, 20, 40, 60, 80, 100, 120, 140].map((val) => {
-              const y = chartH - padY - (val / maxLine) * (chartH - padY * 2);
-              return (
-                <text key={`r-grid-${val}`} x={chartW - padX + 5} y={y + 4} textAnchor="start" fontSize="10" fill="#6b7280">{val}</text>
-              );
-            })}
-
-            {/* Bars */}
-            {months.map((m, i) => {
-              const cx = padX + xStep * i + xStep / 2;
-              
-              const hPPA = (barsPPA[i] / maxBar) * (chartH - padY * 2);
-              const hREC = (barsREC[i] / maxBar) * (chartH - padY * 2);
-              const hSelf = (barsSelf[i] / maxBar) * (chartH - padY * 2);
-
-              const yPPA = chartH - padY - hPPA;
-              const yREC = yPPA - hREC;
-              const ySelf = yREC - hSelf;
-
-              return (
-                <g key={`bar-group-${i}`}>
-                  <rect x={cx - barW / 2} y={yPPA} width={barW} height={hPPA} fill="#2563eb" />
-                  <rect x={cx - barW / 2} y={yREC} width={barW} height={hREC} fill="#f59e0b" />
-                  <rect x={cx - barW / 2} y={ySelf} width={barW} height={hSelf} fill="#16a34a" />
-                  <text x={cx} y={chartH - padY + 15} textAnchor="middle" fontSize="10" fill="#6b7280">{m}</text>
-                </g>
-              );
-            })}
-
-            {/* Line Trend */}
-            <path d={linePath} fill="none" stroke="#dc2626" strokeWidth="2" />
-            {lineCost.map((v, i) => (
-              <circle key={`pt-${i}`} cx={getLineX(i)} cy={getLineY(v)} r="3" fill="white" stroke="#dc2626" strokeWidth="2" />
-            ))}
-
-            <text x="15" y={chartH / 2} transform={`rotate(-90 15,${chartH / 2})`} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="600">비용 (백만원)</text>
-            <text x={chartW - 10} y={chartH / 2} transform={`rotate(90 ${chartW - 10},${chartH / 2})`} textAnchor="middle" fontSize="11" fill="#6b7280" fontWeight="600">단가 (원)</text>
-          </svg>
+          <div className="w-full h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 10, right: -5, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis 
+                  yAxisId="left"
+                  domain={[0, 500]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{ value: "비용 (백만원)", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 11, fill: "#6b7280", fontWeight: "bold" } }}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  domain={[0, 160]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{ value: "단가 (원)", angle: 90, position: "insideRight", offset: 10, style: { fontSize: 11, fill: "#6b7280", fontWeight: "bold" } }}
+                />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Bar yAxisId="left" dataKey="ppa" name="PPA 비용" stackId="a" fill="#2563eb" barSize={24} />
+                <Bar yAxisId="left" dataKey="rec" name="REC 구매" stackId="a" fill="#f59e0b" barSize={24} />
+                <Bar yAxisId="left" dataKey="self" name="자가발전 투자/운영" stackId="a" fill="#16a34a" barSize={24} />
+                <Line yAxisId="right" type="monotone" dataKey="cost" name="단위 비용 (원/kWh)" stroke="#dc2626" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* 파이 차트 */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col items-center">
           <div className="text-base font-bold text-gray-800 mb-4 self-start">이행 수단별 비용 비중</div>
-          <div className="flex flex-col items-center flex-1 w-full justify-center gap-6 mt-4">
-            <div className="relative w-40 h-40 rounded-full" style={{ background: "conic-gradient(#2563eb 0% 45%, #f59e0b 45% 70%, #16a34a 70% 90%, #7c3aed 90% 100%)" }}>
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full"></div>
+          <div className="flex items-center justify-center gap-5 flex-1 w-full mt-4">
+            <div className="w-[150px] h-[150px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={55}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `${value}%`} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm font-semibold text-gray-600">
-              <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: "#2563eb" }}></span>PPA (45%)</span>
-              <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: "#f59e0b" }}></span>REC (25%)</span>
-              <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: "#16a34a" }}></span>자가발전 (20%)</span>
-              <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: "#7c3aed" }}></span>기타 (10%)</span>
+            <div className="flex flex-col gap-2">
+              {pieData.map((entry) => (
+                <span key={entry.name} className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+                  <span className="w-3 h-3 rounded-full" style={{ background: entry.color }}></span>
+                  {entry.name} ({entry.value}%)
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -183,36 +180,36 @@ export function RE100Page() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-2 p-5">
         <div className="text-base font-bold text-gray-800 mb-4">이행 수단별 상세 현황 (누계)</div>
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
-        <table className="w-full text-sm text-left whitespace-nowrap">
-          <thead>
-            <tr>
-              <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">구분</th>
-              <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">이행량 (MWh)</th>
-              <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">비중 (%)</th>
-              <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">총 비용 (백만원)</th>
-              <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">단위 비용 (원/kWh)</th>
-              <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[20%]">비고</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="px-4 py-3 border-b border-gray-100 text-center font-bold text-gray-800">제3자 PPA</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">20,250</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">45.0%</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">2,835</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">140</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-center text-blue-600 font-bold">장기 계약</td>
-            </tr>
-            <tr className="bg-gray-50">
-              <td className="px-4 py-3 border-b border-gray-100 text-center font-bold text-gray-800">자가발전 (태양광)</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">11,250</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">25.0%</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">562</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">50</td>
-              <td className="px-4 py-3 border-b border-gray-100 text-center text-green-600 font-bold">설비 보유</td>
-            </tr>
-          </tbody>
-        </table>
+          <table className="w-full text-sm text-left whitespace-nowrap">
+            <thead>
+              <tr style={{ borderTop: "2px solid #004d99" }}>
+                <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">구분</th>
+                <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">이행량 (MWh)</th>
+                <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">비중 (%)</th>
+                <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">총 비용 (백만원)</th>
+                <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[16%]">단위 비용 (원/kWh)</th>
+                <th className="bg-gray-50 text-gray-600 font-semibold px-4 py-3 border-b border-gray-200 text-center w-[20%]">비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="px-4 py-3 border-b border-gray-100 text-center font-bold text-gray-800">제3자 PPA</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">20,250</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">45.0%</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">2,835</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">140</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center text-blue-600 font-bold">장기 계약</td>
+              </tr>
+              <tr className="bg-gray-50">
+                <td className="px-4 py-3 border-b border-gray-100 text-center font-bold text-gray-800">자가발전 (태양광)</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">11,250</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">25.0%</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">562</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-right font-medium text-gray-700">50</td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center text-green-600 font-bold">설비 보유</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

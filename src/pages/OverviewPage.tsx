@@ -1,3 +1,4 @@
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import type { OverviewPageProps } from "../types";
 
 export function OverviewPage({ site = "all", date = "" }: OverviewPageProps) {
@@ -122,42 +123,11 @@ export function OverviewPage({ site = "all", date = "" }: OverviewPageProps) {
   const weekday = [120, 115, 118, 110, 105, 108, 125, 130, 118, 112, 114, 122].map(v => v * modifier);
   const weekend = [95, 92, 90, 86, 82, 84, 98, 102, 96, 90, 92, 97].map(v => v * modifier);
 
-  const pL = 44;
-  const pR = 12;
-  const pT = 25;
-  const pB = 35;
-
-  const makeLinePath = (values: number[], w: number, h: number) => {
-    const min = Math.min(...weekday, ...weekend) - 5;
-    const max = Math.max(...weekday, ...weekend) + 5;
-    const xStep = (w - pL - pR) / (values.length - 1);
-    const yScale = (h - pT - pB) / (max - min || 1);
-    const pts = values.map((v, i) => {
-      const x = pL + xStep * i;
-      const y = h - pB - (v - min) * yScale;
-      return [x, y];
-    });
-    const d = pts
-      .map(
-        ([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`,
-      )
-      .join(" ");
-    return { d, min, max };
-  };
-
-  const chartW = 1600;
-  const chartH = 260;
-  const { d: weekdayD } = makeLinePath(weekday, chartW, chartH);
-  const {
-    d: weekendD,
-    min: yMin,
-    max: yMax,
-  } = makeLinePath(weekend, chartW, chartH);
-  const yGrid = [0, 0.33, 0.66, 1].map((t) => {
-    const y = pT + (chartH - pT - pB) * t;
-    const val = (yMax - (yMax - yMin) * t).toFixed(0);
-    return { y, val };
-  });
+  const chartData = months.map((m, i) => ({
+    name: m,
+    "평일 심야": parseFloat((weekday[i]).toFixed(1)),
+    "휴일": parseFloat((weekend[i]).toFixed(1)),
+  }));
 
   return (
     <div className="flex flex-col gap-5 pb-3">
@@ -230,34 +200,60 @@ export function OverviewPage({ site = "all", date = "" }: OverviewPageProps) {
                 <span className="w-2.5 h-2.5 rounded-full inline-block bg-[#f59e0b]"></span>휴일 (kW)
               </span>
             </div>
-            <svg className="w-full h-[260px] block" viewBox={`0 0 ${chartW} ${chartH}`}>
-              {yGrid.map((g, gridIndex) => (
-                <g key={gridIndex}>
-                  <line x1={pL} x2={chartW - pR} y1={g.y} y2={g.y} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={pL - 8} y={g.y + 4} textAnchor="end" fontSize="11" fill="#4b5563" fontWeight="600">
-                    {g.val}
-                  </text>
-                </g>
-              ))}
-              <path d={weekdayD} fill="none" stroke="#1f4c8f" strokeWidth="3" />
-              <path d={weekendD} fill="none" stroke="#f59e0b" strokeWidth="3" />
-              {months.map((m, mIndex) => {
-                const xVal = pL + ((chartW - pL - pR) / (months.length - 1)) * mIndex;
-                return (
-                  <text
-                    key={mIndex}
-                    x={xVal}
-                    y={chartH - 4}
-                    textAnchor="middle"
-                    fontSize="11"
-                    fill="#4b5563"
-                    fontWeight="600"
-                  >
-                    {m}
-                  </text>
-                );
-              })}
-            </svg>
+            <div className="w-full h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorWeekday" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1f4c8f" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#1f4c8f" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorWeekend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis 
+                    dataKey="name" 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fontSize: 11, fill: "#4b5563", fontWeight: "600" }} 
+                  />
+                  <YAxis 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fontSize: 11, fill: "#4b5563", fontWeight: "600" }} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: "#fff", 
+                      border: "1px solid #e5e7eb", 
+                      borderRadius: "8px", 
+                      boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" 
+                    }}
+                    labelStyle={{ fontWeight: "700", color: "#111827", fontSize: "12px" }}
+                    itemStyle={{ fontSize: "12px", fontWeight: "600" }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="평일 심야" 
+                    stroke="#1f4c8f" 
+                    strokeWidth={2.5} 
+                    fillOpacity={1} 
+                    fill="url(#colorWeekday)" 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="휴일" 
+                    stroke="#f59e0b" 
+                    strokeWidth={2.5} 
+                    fillOpacity={1} 
+                    fill="url(#colorWeekend)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>

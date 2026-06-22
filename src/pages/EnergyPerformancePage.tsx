@@ -1,4 +1,31 @@
 import { useState } from "react";
+import { ResponsiveContainer, ComposedChart, AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+
+const CustomYAxisLabel = ({ viewBox, value, fill = "#4b5563" }: any) => {
+  const { x, y, height } = viewBox || {};
+  const isLeft = x < 150;
+  const finalAngle = isLeft ? -90 : 90;
+  
+  // Tab 1 uses wide label names: "전력 (kWh)" and "LNG/압축공기"
+  const isWide = value === "전력 (kWh)" || value === "LNG/압축공기";
+  
+  // Calculate horizontal position relative to the axis line (x)
+  const cx = isLeft ? (x - (isWide ? 52 : 36)) : (x + (isWide ? 52 : 36));
+  const cy = y + (height || 0) / 2;
+  return (
+    <g transform={`translate(${cx}, ${cy})`}>
+      <text
+        transform={`rotate(${finalAngle})`}
+        textAnchor="middle"
+        fill={fill}
+        fontSize={11}
+        fontWeight="bold"
+      >
+        {value}
+      </text>
+    </g>
+  );
+};
 
 const perfTabs = [
   { id: "usage", name: "사용량현황" },
@@ -19,25 +46,20 @@ function UsageStatusTab() {
   const lngData = [750, 780, 770, 750, 500, 480, 750, 790, 810, 780, 750, 500, 480, 780, 790];
   const airData = [1950, 2000, 1980, 1900, 1300, 1250, 1980, 2050, 2100, 2000, 1900, 1400, 1350, 2000, 2050];
   
-  const chartW = 800;
-  const chartH = 200;
-  const padX = 60;
-  const padYTop = 20;
-  const padYBot = 30;
-  const drawH = chartH - padYTop - padYBot;
-  
-  const pwrMin = 8000, pwrMax = 14000;
-  const otherMin = 500, otherMax = 2500;
-  
-  const getPwrY = (v: number) => padYTop + drawH - ((v - pwrMin) / (pwrMax - pwrMin)) * drawH;
-  const getOtherY = (v: number) => padYTop + drawH - ((v - otherMin) / (otherMax - otherMin)) * drawH;
-  const getX = (i: number) => padX + (i / (days.length - 1)) * (chartW - 2 * padX);
+  const chartData = days.map((day, idx) => ({
+    name: `${day}일`,
+    pwr: pwrData[idx],
+    lng: lngData[idx],
+    air: airData[idx]
+  }));
 
-  const pwrPath = pwrData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getPwrY(v)}`).join(' ');
-  const lngPath = lngData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getOtherY(v)}`).join(' ');
-  const airPath = airData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getOtherY(v)}`).join(' ');
-
-  const gridRatios = [0, 0.25, 0.5, 0.75, 1];
+  const pieData = [
+    { name: "전력", value: 98.9, color: "#004d99" },
+    { name: "LNG", value: 43.9, color: "#f59e0b" },
+    { name: "압축공기", value: 32.9, color: "#14b8a6" },
+    { name: "스팀", value: 26.3, color: "#6b7280" },
+    { name: "유량", value: 17.5, color: "#854d0e" },
+  ];
 
   return (
     <div className="flex flex-col gap-5 mt-2">
@@ -85,57 +107,74 @@ function UsageStatusTab() {
             <div><div className="w-2.5 h-2.5 rounded-full border-2 inline-block mr-1.5 align-middle" style={{ borderColor: "#14b8a6" }}></div> 압축공기 (Nm³)</div>
           </div>
           
-          <div className="relative w-full h-[260px] mt-2">
-            <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", height: "100%", overflow: "visible", display: "block" }}>
-              {gridRatios.map((ratio, idx) => {
-                const topPos = padYTop + drawH * (1 - ratio);
-                const pwrVal = pwrMin + (pwrMax - pwrMin) * ratio;
-                const otherVal = otherMin + (otherMax - otherMin) * ratio;
-                return (
-                  <g key={idx}>
-                    <line x1={padX} y1={topPos} x2={chartW - padX} y2={topPos} stroke="#e5e7eb" strokeWidth="1" />
-                    <text x={padX - 10} y={topPos + 4} textAnchor="end" fontSize="11" fill="#6b7280">{pwrVal.toLocaleString()}</text>
-                    <text x={chartW - padX + 10} y={topPos + 4} textAnchor="start" fontSize="11" fill="#6b7280">{otherVal.toLocaleString()}</text>
-                  </g>
-                );
-              })}
-              
-              <path d={pwrPath} fill="none" stroke="#004d99" strokeWidth="2.5" />
-              <path d={lngPath} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
-              <path d={airPath} fill="none" stroke="#14b8a6" strokeWidth="2.5" />
-
-              {/* Data points */}
-              {pwrData.map((v, i) => <circle key={`pwr-${i}`} cx={getX(i)} cy={getPwrY(v)} r="3" fill="#ffffff" stroke="#004d99" strokeWidth="2" />)}
-              {lngData.map((v, i) => <circle key={`lng-${i}`} cx={getX(i)} cy={getOtherY(v)} r="3" fill="#ffffff" stroke="#f59e0b" strokeWidth="2" />)}
-              {airData.map((v, i) => <circle key={`air-${i}`} cx={getX(i)} cy={getOtherY(v)} r="3" fill="#ffffff" stroke="#14b8a6" strokeWidth="2" />)}
-
-              {/* X Axis labels */}
-              {days.map((d, i) => (
-                <text key={i} x={getX(i)} y={chartH - 5} textAnchor="middle" fontSize="11" fill="#6b7280">{d}일</text>
-              ))}
-
-              <text x="15" y={padYTop + drawH / 2} transform={`rotate(-90 15,${padYTop + drawH / 2})`} textAnchor="middle" fontSize="12" fill="#4b5563" fontWeight="bold">전력</text>
-              <text x={chartW - 15} y={padYTop + drawH / 2} transform={`rotate(90 ${chartW - 15},${padYTop + drawH / 2})`} textAnchor="middle" fontSize="12" fill="#4b5563" fontWeight="bold">LNG/압축공기</text>
-            </svg>
+          <div className="w-full h-[260px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 15, right: 75, left: 75, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  width={55}
+                  domain={[8000, 14000]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="전력 (kWh)" angle={-90} />}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  width={55}
+                  domain={[500, 2500]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="LNG/압축공기" angle={90} />}
+                />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Line yAxisId="left" type="monotone" dataKey="pwr" name="전력" stroke="#004d99" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="right" type="monotone" dataKey="lng" name="LNG" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="right" type="monotone" dataKey="air" name="압축공기" stroke="#14b8a6" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">에너지원별 사용 비중</div>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
-            <svg viewBox="0 0 100 100" width="140" height="140" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#004d99" strokeWidth="26" strokeDasharray="98.9 219.9" strokeDashoffset="0" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#f59e0b" strokeWidth="26" strokeDasharray="43.9 219.9" strokeDashoffset="-98.9" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#14b8a6" strokeWidth="26" strokeDasharray="32.9 219.9" strokeDashoffset="-142.8" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#6b7280" strokeWidth="26" strokeDasharray="26.3 219.9" strokeDashoffset="-175.7" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#854d0e" strokeWidth="26" strokeDasharray="17.5 219.9" strokeDashoffset="-202.0" />
-            </svg>
+          <div className="flex items-center justify-center gap-5 flex-1">
+            <div className="w-[140px] h-[140px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={50}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => `${((value / 219.5) * 100).toFixed(1)}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#004d99" }}></div>전력</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#f59e0b" }}></div>LNG</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#14b8a6" }}></div>압축공기</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#6b7280" }}></div>스팀</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#854d0e" }}></div>유량</div>
+              {pieData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <div className="w-3 h-3 rounded-full" style={{ background: entry.color }}></div>
+                  {entry.name}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -184,26 +223,17 @@ function CostStatusTab() {
   const pwrCost = [3200, 3100, 3300, 3100, 2800, 2750, 3400, 3450, 3300, 3250, 3100, 2900, 2850, 3500, 3550];
   const lngCost = [900, 850, 950, 850, 800, 750, 1000, 1050, 950, 900, 850, 800, 750, 1050, 1100];
   
-  const chartW = 800;
-  const chartH = 200;
-  const padX = 60;
-  const padYTop = 20;
-  const padYBot = 30;
-  const drawH = chartH - padYTop - padYBot;
-  
-  const maxCost = 4000;
-  const minCost = 0;
-  
-  const getY = (v: number) => padYTop + drawH - ((v - minCost) / (maxCost - minCost)) * drawH;
-  const getX = (i: number) => padX + (i / (days.length - 1)) * (chartW - 2 * padX);
+  const chartData = days.map((day, idx) => ({
+    name: `${day}일`,
+    pwrCost: pwrCost[idx],
+    lngCost: lngCost[idx]
+  }));
 
-  const pwrAreaPath = `M ${getX(0)} ${getY(0)} ` + pwrCost.map((v, i) => `L ${getX(i)} ${getY(v)}`).join(' ') + ` L ${getX(days.length-1)} ${getY(0)} Z`;
-  const lngAreaPath = `M ${getX(0)} ${getY(0)} ` + lngCost.map((v, i) => `L ${getX(i)} ${getY(v)}`).join(' ') + ` L ${getX(days.length-1)} ${getY(0)} Z`;
-  
-  const pwrLinePath = pwrCost.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(v)}`).join(' ');
-  const lngLinePath = lngCost.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(v)}`).join(' ');
-
-  const gridRatios = [0, 0.25, 0.5, 0.75, 1];
+  const pieData = [
+    { name: "울산 사업장", value: 101.1, color: "#001f4d" },
+    { name: "서산 사업장", value: 85.3, color: "#004d99" },
+    { name: "성남 사업장", value: 33.5, color: "#93c5fd" },
+  ];
 
   return (
     <div className="flex flex-col gap-5 mt-2">
@@ -242,47 +272,70 @@ function CostStatusTab() {
             <div><div className="w-2.5 h-2.5 rounded-full border-2 inline-block mr-1.5 align-middle" style={{ borderColor: "#f59e0b", background: "rgba(245,158,11,0.1)" }}></div> LNG 비용 (천원)</div>
           </div>
           
-          <div className="relative w-full h-[260px] mt-2">
-            <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", height: "100%", overflow: "visible", display: "block" }}>
-              {gridRatios.map((ratio, idx) => {
-                const topPos = padYTop + drawH * (1 - ratio);
-                const val = minCost + (maxCost - minCost) * ratio;
-                return (
-                  <g key={idx}>
-                    <line x1={padX} y1={topPos} x2={chartW - padX} y2={topPos} stroke="#e5e7eb" strokeWidth="1" />
-                    <text x={padX - 10} y={topPos + 4} textAnchor="end" fontSize="11" fill="#6b7280">{val.toLocaleString()}</text>
-                  </g>
-                );
-              })}
-
-              <path d={pwrAreaPath} fill="rgba(0, 77, 153, 0.08)" stroke="none" />
-              <path d={lngAreaPath} fill="rgba(245, 158, 11, 0.08)" stroke="none" />
-              
-              <path d={pwrLinePath} fill="none" stroke="#004d99" strokeWidth="2.5" />
-              <path d={lngLinePath} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
-
-              {pwrCost.map((v, i) => <circle key={`pwr-${i}`} cx={getX(i)} cy={getY(v)} r="3" fill="#ffffff" stroke="#004d99" strokeWidth="2" />)}
-              {lngCost.map((v, i) => <circle key={`lng-${i}`} cx={getX(i)} cy={getY(v)} r="3" fill="#ffffff" stroke="#f59e0b" strokeWidth="2" />)}
-
-              {days.map((d, i) => (
-                <text key={i} x={getX(i)} y={chartH - 5} textAnchor="middle" fontSize="11" fill="#6b7280">{d}일</text>
-              ))}
-            </svg>
+          <div className="w-full h-[260px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 15, right: -5, left: -25, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="colorPwrCost" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#004d99" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#004d99" stopOpacity={0.0}/>
+                  </linearGradient>
+                  <linearGradient id="colorLngCost" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  domain={[0, 4000]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Area type="monotone" dataKey="pwrCost" name="전력 비용" stroke="#004d99" strokeWidth={2.5} fillOpacity={1} fill="url(#colorPwrCost)" dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                <Area type="monotone" dataKey="lngCost" name="LNG 비용" stroke="#f59e0b" strokeWidth={2.5} fillOpacity={1} fill="url(#colorLngCost)" dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">사업장별 비용 점유율</div>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
-            <svg viewBox="0 0 100 100" width="140" height="140" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#001f4d" strokeWidth="26" strokeDasharray="101.1 219.9" strokeDashoffset="0" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#004d99" strokeWidth="26" strokeDasharray="85.3 219.9" strokeDashoffset="-101.1" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#93c5fd" strokeWidth="26" strokeDasharray="33.5 219.9" strokeDashoffset="-186.4" />
-            </svg>
+          <div className="flex items-center justify-center gap-5 flex-1">
+            <div className="w-[140px] h-[140px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={50}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => `${((value / 219.9) * 100).toFixed(1)}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#001f4d" }}></div>울산 사업장</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#004d99" }}></div>서산 사업장</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#93c5fd" }}></div>성남 사업장</div>
+              {pieData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <div className="w-3 h-3 rounded-full" style={{ background: entry.color }}></div>
+                  {entry.name}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -333,32 +386,18 @@ function UnitStatusTab() {
   const factoryPwrUnit = [10.0, 6.6, 8.2];
   const factoryColors = ['#dc2626', '#16a34a', '#001f4d'];
 
-  // Mixed Chart calculations
-  const cw1 = 800, ch1 = 200;
-  const chartStartX1 = 60; 
-  const chartEndX1 = cw1 - 40;
-  const dw1 = chartEndX1 - chartStartX1;
-  const dh1 = ch1 - 30 - 30;
-  const slotW1 = dw1 / months.length;
-  
-  const getX1 = (i: number) => chartStartX1 + (i + 0.5) * slotW1;
-  const getY1Pwr = (v: number) => 30 + dh1 - ((v - 5) / (14 - 5)) * dh1; 
-  const getY1Lng = (v: number) => 30 + dh1 - ((v - 0) / (14 - 0)) * dh1; 
-  const getBarH = (v: number) => (v / 70) * dh1;
+  const chartData = months.map((month, idx) => ({
+    name: month,
+    prod: prodData[idx],
+    pwrUnit: pwrUnitTrend[idx],
+    lngUnit: lngUnitTrend[idx]
+  }));
 
-  const pwrTrendPath = pwrUnitTrend.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX1(i)} ${getY1Pwr(v)}`).join(' ');
-  const lngTrendPath = lngUnitTrend.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX1(i)} ${getY1Lng(v)}`).join(' ');
-
-  // Bar Chart calculations
-  const cw2 = 400, ch2 = 200;
-  const chartStartX2 = 50;
-  const chartEndX2 = cw2 - 20;
-  const dw2 = chartEndX2 - chartStartX2;
-  const dh2 = ch2 - 20 - 30;
-  const slotW2 = dw2 / factories.length;
-  
-  const getY2 = (v: number) => 20 + dh2 - (v / 12) * dh2; 
-  const getX2 = (i: number) => chartStartX2 + (i + 0.5) * slotW2;
+  const barData = factories.map((fact, idx) => ({
+    name: fact,
+    value: factoryPwrUnit[idx],
+    color: factoryColors[idx]
+  }));
 
   return (
     <div className="flex flex-col gap-5 mt-2">
@@ -403,65 +442,70 @@ function UnitStatusTab() {
             <div><div className="w-2.5 h-2.5 rounded-full border-2 inline-block mr-1.5 align-middle" style={{ borderColor: "#f59e0b", background: "#fff" }}></div> LNG 원단위 (m³/EA)</div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 16, height: 12, background: "#cffafe", borderRadius: 2 }}></div> 생산량 (EA)</div>
           </div>
-          <div className="relative w-full h-[260px] mt-2">
-            <svg viewBox={`0 0 ${cw1} ${ch1}`} style={{ width: "100%", height: "100%", overflow: "visible" }}>
-              {[5, 6, 8, 10, 12, 14].map((v, idx) => {
-                const y = getY1Pwr(v);
-                return (
-                  <g key={idx}>
-                    <line x1={chartStartX1} y1={y} x2={chartEndX1} y2={y} stroke="#f3f4f6" strokeWidth="1"/>
-                    <text x={chartStartX1 - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#9ca3af">{v}</text>
-                  </g>
-                );
-              })}
-
-              {/* Bars */}
-              {prodData.map((v, i) => {
-                const x = getX1(i) - 12;
-                const h = getBarH(v);
-                return <rect key={`bar-${i}`} x={x} y={30 + dh1 - h} width="24" height={h} fill="#cffafe" rx="2" />;
-              })}
-
-              <path d={pwrTrendPath} fill="none" stroke="#001f4d" strokeWidth="2" />
-              <path d={lngTrendPath} fill="none" stroke="#f59e0b" strokeWidth="2" />
-              
-              {pwrUnitTrend.map((v, i) => <circle key={`pwr-${i}`} cx={getX1(i)} cy={getY1Pwr(v)} r="3.5" fill="#ffffff" stroke="#001f4d" strokeWidth="2" />)}
-              {lngUnitTrend.map((v, i) => <circle key={`lng-${i}`} cx={getX1(i)} cy={getY1Lng(v)} r="3.5" fill="#ffffff" stroke="#f59e0b" strokeWidth="2" />)}
-
-              {months.map((m, i) => (
-                <text key={i} x={getX1(i)} y={ch1 - 5} textAnchor="middle" fontSize="11" fill="#4b5563">{m}</text>
-              ))}
-
-              <text x="15" y={30 + dh1 / 2} transform={`rotate(-90 15,${30 + dh1 / 2})`} textAnchor="middle" fontSize="10" fill="#9ca3af">전력 원단위</text>
-              <text x={cw1 - 15} y={30 + dh1 / 2} transform={`rotate(90 ${cw1 - 15},${30 + dh1 / 2})`} textAnchor="middle" fontSize="10" fill="#9ca3af">LNG 원단위</text>
-            </svg>
+          <div className="w-full h-[260px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 15, right: 60, left: 60, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  width={45}
+                  domain={[0, 70]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="생산량 (EA)" angle={-90} />}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  width={45}
+                  domain={[0, 14]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="원단위" angle={90} />}
+                />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Bar yAxisId="left" dataKey="prod" name="생산량" fill="#cffafe" radius={[2, 2, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="pwrUnit" name="전력 원단위" stroke="#001f4d" strokeWidth={2} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} />
+                <Line yAxisId="right" type="monotone" dataKey="lngUnit" name="LNG 원단위" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} />
+              </ComposedChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">사업장별 전력 원단위 비교 (5월)</div>
-          <div style={{ height: 200, marginTop: 10 }}>
-            <svg viewBox={`0 0 ${cw2} ${ch2}`} style={{ width: "100%", height: "100%", overflow: "visible" }}>
-              {[0, 2, 4, 6, 8, 10, 12].map((v, idx) => {
-                const y = getY2(v);
-                return (
-                  <g key={idx}>
-                    <line x1={chartStartX2} y1={y} x2={chartEndX2} y2={y} stroke="#f3f4f6" strokeWidth="1" />
-                    <text x={chartStartX2 - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#9ca3af">{v}</text>
-                  </g>
-                );
-              })}
-
-              {factoryPwrUnit.map((v, i) => {
-                const x = getX2(i) - 22;
-                const h = (v / 12) * dh2;
-                return <rect key={`fbar-${i}`} x={x} y={20 + dh2 - h} width="44" height={h} fill={factoryColors[i]} />;
-              })}
-
-              {factories.map((f, i) => (
-                <text key={i} x={getX2(i)} y={ch2 - 5} textAnchor="middle" fontSize="10" fill="#4b5563">{f}</text>
-              ))}
-            </svg>
+          <div className="w-full flex-1 mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} margin={{ top: 25, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  domain={[0, 15]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Bar dataKey="value" name="전력 원단위" radius={[4, 4, 0, 0]}>
+                  {barData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
@@ -507,27 +551,20 @@ function StandbyHolidayTab() {
   const lngData = [25, 23, 24, 21, 23, 24];
   const airData = [10, 9, 10, 9, 10, 9];
   
-  const chartW = 800;
-  const chartH = 200;
-  const padX = 60;
-  const padYTop = 20;
-  const padYBot = 30;
-  const drawH = chartH - padYTop - padYBot;
-  
-  const pwrMin = 0, pwrMax = 500;
-  const lngMin = 0, lngMax = 30;
-  const airMin = 0, airMax = 15;
-  
-  const getPwrY = (v: number) => padYTop + drawH - ((v - pwrMin) / (pwrMax - pwrMin)) * drawH;
-  const getLngY = (v: number) => padYTop + drawH - ((v - lngMin) / (lngMax - lngMin)) * drawH;
-  const getAirY = (v: number) => padYTop + drawH - ((v - airMin) / (airMax - airMin)) * drawH;
-  const getX = (i: number) => padX + (i / (dates.length - 1)) * (chartW - 2 * padX);
+  const chartData = dates.map((date, idx) => ({
+    name: date,
+    pwr: pwrData[idx],
+    lng: lngData[idx],
+    air: airData[idx]
+  }));
 
-  const pwrPath = pwrData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getPwrY(v)}`).join(' ');
-  const lngPath = lngData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getLngY(v)}`).join(' ');
-  const airPath = airData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getAirY(v)}`).join(' ');
-
-  const gridRatios = [0, 0.25, 0.5, 0.75, 1];
+  const pieData = [
+    { name: "전력", value: 105.5, color: "#001f4d" },
+    { name: "LNG", value: 35.2, color: "#f59e0b" },
+    { name: "압축공기", value: 44.0, color: "#14b8a6" },
+    { name: "스팀", value: 24.2, color: "#6b7280" },
+    { name: "기타", value: 11.0, color: "#e5e7eb" },
+  ];
 
   return (
     <div className="flex flex-col gap-5 mt-2">
@@ -577,55 +614,74 @@ function StandbyHolidayTab() {
             <div><div className="w-2.5 h-2.5 rounded-full border-2 inline-block mr-1.5 align-middle" style={{ borderColor: "#14b8a6" }}></div> 압축공기 (Nm³)</div>
           </div>
           
-          <div className="relative w-full h-[260px] mt-2">
-            <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", height: "100%", overflow: "visible", display: "block" }}>
-              {gridRatios.map((ratio, idx) => {
-                const topPos = padYTop + drawH * (1 - ratio);
-                const pwrVal = pwrMin + (pwrMax - pwrMin) * ratio;
-                const lngVal = lngMin + (lngMax - lngMin) * ratio;
-                return (
-                  <g key={idx}>
-                    <line x1={padX} y1={topPos} x2={chartW - padX} y2={topPos} stroke="#e5e7eb" strokeWidth="1" />
-                    <text x={padX - 10} y={topPos + 4} textAnchor="end" fontSize="11" fill="#6b7280">{pwrVal.toLocaleString()}</text>
-                    <text x={chartW - padX + 10} y={topPos + 4} textAnchor="start" fontSize="11" fill="#6b7280">{lngVal.toLocaleString()}</text>
-                  </g>
-                );
-              })}
-
-              <path d={pwrPath} fill="none" stroke="#004d99" strokeWidth="2.5" />
-              <path d={lngPath} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
-              <path d={airPath} fill="none" stroke="#14b8a6" strokeWidth="2.5" />
-
-              {pwrData.map((v, i) => <circle key={`pwr-${i}`} cx={getX(i)} cy={getPwrY(v)} r="3.5" fill="#ffffff" stroke="#004d99" strokeWidth="2" />)}
-              {lngData.map((v, i) => <circle key={`lng-${i}`} cx={getX(i)} cy={getLngY(v)} r="3.5" fill="#ffffff" stroke="#f59e0b" strokeWidth="2" />)}
-              {airData.map((v, i) => <circle key={`air-${i}`} cx={getX(i)} cy={getAirY(v)} r="3.5" fill="#ffffff" stroke="#14b8a6" strokeWidth="2" />)}
-
-              {dates.map((d, i) => (
-                <text key={i} x={getX(i)} y={chartH - 5} textAnchor="middle" fontSize="11" fill="#6b7280">{d}</text>
-              ))}
-
-              <text x="15" y={padYTop + drawH/2} transform={`rotate(-90 15,${padYTop + drawH/2})`} textAnchor="middle" fontSize="12" fill="#4b5563" fontWeight="bold">전력/압축공기</text>
-              <text x={chartW - 15} y={padYTop + drawH/2} transform={`rotate(90 ${chartW - 15},${padYTop + drawH/2})`} textAnchor="middle" fontSize="12" fill="#4b5563" fontWeight="bold">LNG</text>
-            </svg>
+          <div className="w-full h-[260px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 15, right: 60, left: 60, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  width={45}
+                  domain={[0, 500]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="전력/압축공기" angle={-90} />}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  width={45}
+                  domain={[0, 30]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="LNG" angle={90} />}
+                />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Line yAxisId="left" type="monotone" dataKey="pwr" name="전력" stroke="#004d99" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="right" type="monotone" dataKey="lng" name="LNG" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="left" type="monotone" dataKey="air" name="압축공기" stroke="#14b8a6" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">에너지원별 대기 비중 (TOE)</div>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
-            <svg viewBox="0 0 100 100" width="140" height="140" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#001f4d" strokeWidth="26" strokeDasharray="105.5 219.9" strokeDashoffset="0" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#f59e0b" strokeWidth="26" strokeDasharray="35.2 219.9" strokeDashoffset="-105.5" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#14b8a6" strokeWidth="26" strokeDasharray="44.0 219.9" strokeDashoffset="-140.7" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#6b7280" strokeWidth="26" strokeDasharray="24.2 219.9" strokeDashoffset="-184.7" />
-              <circle cx="50" cy="50" r="35" fill="none" stroke="#e5e7eb" strokeWidth="26" strokeDasharray="11.0 219.9" strokeDashoffset="-208.9" />
-            </svg>
+          <div className="flex items-center justify-center gap-5 flex-1">
+            <div className="w-[140px] h-[140px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={50}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => `${((value / 219.9) * 100).toFixed(1)}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#001f4d" }}></div>전력</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#f59e0b" }}></div>LNG</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#14b8a6" }}></div>압축공기</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#6b7280" }}></div>스팀</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700"><div className="w-3 h-3 rounded-full" style={{ background: "#e5e7eb" }}></div>기타</div>
+              {pieData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <div className="w-3 h-3 rounded-full" style={{ background: entry.color }}></div>
+                  {entry.name}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -669,17 +725,21 @@ function StandbyHolidayTab() {
 
 // 5. Standby Holiday Rank Tab
 function StandbyHolidayRankTab() {
-  const drawW = 380;
-  const drawH = 200;
-  const padX = 80;
-  const padY = 20;
-  const barH = 20;
-
   const worstData = [125.4, 98.2, 85.0, 78.5, 72.1, 65.0, 62.3, 58.0, 55.4, 51.2];
   const worstLabels = ['Comp #3', 'Fan #2', 'Comp #1', 'Boiler #1', 'Fan #5', 'Comp #2', 'Pump A', 'Comp #4', 'Air Dry A', 'Exh Fan #1'];
   
   const topData = [0.8, 1.2, 1.5, 1.8, 2.1, 2.3, 2.5, 2.8, 2.9, 3.1];
   const topLabels = ['LED #1', 'Pump D', 'Valve #2', 'Panel B', 'Switch C', 'IoT Gate', 'LED #3', 'IoT Node', 'LED #2', 'IOT Sw #1'];
+
+  const worstChartData = worstLabels.map((lbl, idx) => ({
+    name: lbl,
+    value: worstData[idx]
+  }));
+
+  const topChartData = topLabels.map((lbl, idx) => ({
+    name: lbl,
+    value: topData[idx]
+  }));
 
   return (
     <div className="flex flex-col gap-5 mt-2">
@@ -720,49 +780,39 @@ function StandbyHolidayRankTab() {
       <div className="flex flex-col lg:flex-row gap-5 items-stretch">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">Worst 10 대기전력 발생 장비 (kW)</div>
-          <div style={{ height: 250, position: "relative" }}>
-            <svg viewBox="0 0 500 250" style={{ width: "100%", height: "100%", overflow: "visible" }}>
-              {[0, 20, 40, 60, 80, 100, 120, 140].map((v, idx) => {
-                const x = padX + (v / 140) * drawW;
-                return (
-                  <g key={idx}>
-                    <line x1={x} y1={padY} x2={x} y2={padY + drawH} stroke="#f3f4f6" strokeWidth="1" />
-                    <text x={x} y={padY + drawH + 20} textAnchor="middle" fontSize="11" fill="#9ca3af">{v}</text>
-                  </g>
-                );
-              })}
-              {worstData.map((v, i) => {
-                const w = (v / 140) * drawW;
-                return <rect key={`wbar-${i}`} x={padX} y={padY + i * barH} width={w} height={barH} fill="#ef4444" />;
-              })}
-              {worstLabels.map((lbl, i) => (
-                <text key={i} x={padX - 10} y={padY + i * barH + barH / 2 + 4} textAnchor="end" fontSize="12" fill="#4b5563">{lbl}</text>
-              ))}
-            </svg>
+          <div className="w-full h-[320px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={worstChartData}
+                layout="vertical"
+                margin={{ top: 5, right: 20, left: 15, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                <XAxis type="number" domain={[0, 140]} tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11, fill: "#4b5563" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Bar dataKey="value" name="대기전력" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">TOP 10 대기전력 우수 장비 (kW)</div>
-          <div style={{ height: 250, position: "relative" }}>
-            <svg viewBox="0 0 500 250" style={{ width: "100%", height: "100%", overflow: "visible" }}>
-              {[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5].map((v, idx) => {
-                const x = padX + (v / 3.5) * drawW;
-                return (
-                  <g key={idx}>
-                    <line x1={x} y1={padY} x2={x} y2={padY + drawH} stroke="#f3f4f6" strokeWidth="1" />
-                    <text x={x} y={padY + drawH + 20} textAnchor="middle" fontSize="11" fill="#9ca3af">{v.toFixed(1)}</text>
-                  </g>
-                );
-              })}
-              {topData.map((v, i) => {
-                const w = (v / 3.5) * drawW;
-                return <rect key={`tbar-${i}`} x={padX} y={padY + i * barH} width={w} height={barH} fill="#22c55e" />;
-              })}
-              {topLabels.map((lbl, i) => (
-                <text key={i} x={padX - 10} y={padY + i * barH + barH / 2 + 4} textAnchor="end" fontSize="12" fill="#4b5563">{lbl}</text>
-              ))}
-            </svg>
+          <div className="w-full h-[320px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={topChartData}
+                layout="vertical"
+                margin={{ top: 5, right: 20, left: 15, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                <XAxis type="number" domain={[0, 3.5]} tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11, fill: "#4b5563" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Bar dataKey="value" name="대기전력" fill="#22c55e" radius={[0, 4, 4, 0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
@@ -843,20 +893,20 @@ function StandbyWeekdayTab() {
   const lngData = [21, 20, 19, 17, 17, 17.5, 19, 24, 45]; 
   const airData = [415, 400, 395, 388, 386, 390, 408, 450, 540]; 
 
-  const chartW = 800;
-  const chartH = 200;
-  const padX = 60;
-  const padYTop = 20;
-  const padYBot = 30;
-  const drawH = chartH - padYTop - padYBot;
+  const chartData = hours.map((hour, idx) => ({
+    name: hour,
+    pwr: pwrData[idx],
+    lng: lngData[idx],
+    air: airData[idx]
+  }));
 
-  const getYLeft = (v: number) => padYTop + drawH - ((v - 350) / 200) * drawH;
-  const getYRight = (v: number) => padYTop + drawH - ((v - 15) / 30) * drawH;
-  const getX = (i: number) => padX + (i / (hours.length - 1)) * (chartW - 2 * padX);
-
-  const pwrPath = pwrData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getYLeft(v)}`).join(' ');
-  const lngPath = lngData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getYRight(v)}`).join(' ');
-  const airPath = airData.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getYLeft(v)}`).join(' ');
+  const pieData = [
+    { name: "전력", value: 81.0, color: "#1e3a8a" },
+    { name: "압축공기", value: 53.0, color: "#00c49f" },
+    { name: "LNG", value: 34.0, color: "#f59e0b" },
+    { name: "스팀", value: 15.0, color: "#0ea5e9" },
+    { name: "기타", value: 5.5, color: "#e5e7eb" },
+  ];
 
   return (
     <div className="flex flex-col gap-5 mt-2">
@@ -907,59 +957,74 @@ function StandbyWeekdayTab() {
             <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#4b5563" }}><div style={{ width: 12, height: 12, border: "2px solid #00c49f", background: "#fff" }}></div> 압축공기 (Nm³)</div>
           </div>
           
-          <div style={{ height: 200, position: "relative" }}>
-            <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", height: "100%", overflow: "visible", display: "block" }}>
-              {[350, 400, 450, 500, 550].map((v, idx) => {
-                const y = getYLeft(v);
-                return (
-                  <g key={idx}>
-                    <line x1={padX} y1={y} x2={chartW - padX} y2={y} stroke="#f3f4f6" strokeWidth="1" />
-                    <text x={padX - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#9ca3af">{v}</text>
-                  </g>
-                );
-              })}
-              {[15, 20, 25, 30, 35, 40, 45].map((v, idx) => {
-                const y = getYRight(v);
-                return (
-                  <text key={idx} x={chartW - padX + 10} y={y + 4} textAnchor="start" fontSize="10" fill="#9ca3af">{v}</text>
-                );
-              })}
-              
-              <path d={pwrPath} fill="none" stroke="#1e3a8a" strokeWidth="2.5" />
-              {pwrData.map((v, i) => <rect key={`p-${i}`} x={getX(i)-3} y={getYLeft(v)-3} width="6" height="6" fill="#fff" stroke="#1e3a8a" strokeWidth="1.5"/>)}
-              
-              <path d={lngPath} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
-              {lngData.map((v, i) => <rect key={`l-${i}`} x={getX(i)-3} y={getYRight(v)-3} width="6" height="6" fill="#fff" stroke="#f59e0b" strokeWidth="1.5"/>)}
-              
-              <path d={airPath} fill="none" stroke="#00c49f" strokeWidth="2.5" />
-              {airData.map((v, i) => <rect key={`a-${i}`} x={getX(i)-3} y={getYLeft(v)-3} width="6" height="6" fill="#fff" stroke="#00c49f" strokeWidth="1.5"/>)}
-              
-              {hours.map((h, i) => (
-                <text key={i} x={getX(i)} y={chartH - 5} textAnchor="middle" fontSize="10" fill="#9ca3af">{h}</text>
-              ))}
-              
-              <text x={padX - 45} y={chartH/2} transform={`rotate(-90 ${padX - 45} ${chartH/2})`} textAnchor="middle" fontSize="12" fill="#4b5563" fontWeight="600">전력 (kWh)</text>
-              <text x={chartW - padX + 45} y={chartH/2} transform={`rotate(90 ${chartW - padX + 45} ${chartH/2})`} textAnchor="middle" fontSize="12" fill="#4b5563" fontWeight="600">LNG (m³)</text>
-            </svg>
+          <div className="w-full h-[260px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 15, right: 60, left: 60, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  width={45}
+                  domain={[350, 560]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="전력/압축공기" angle={-90} />}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  width={45}
+                  domain={[15, 46]}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={<CustomYAxisLabel value="LNG" angle={90} />}
+                />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Line yAxisId="left" type="monotone" dataKey="pwr" name="전력" stroke="#1e3a8a" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="right" type="monotone" dataKey="lng" name="LNG" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="left" type="monotone" dataKey="air" name="압축공기" stroke="#00c49f" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
         
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">에너지원별 대기 비중 (TOE)</div>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
-            <svg viewBox="0 0 100 100" width="140" height="140" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="50" cy="50" r="30" fill="none" stroke="#e5e7eb" strokeWidth="25" />
-              <circle cx="50" cy="50" r="30" fill="none" stroke="#1e3a8a" strokeWidth="25" strokeDasharray="81 188.5" strokeDashoffset="0" />
-              <circle cx="50" cy="50" r="30" fill="none" stroke="#00c49f" strokeWidth="25" strokeDasharray="53 188.5" strokeDashoffset="-81" />
-              <circle cx="50" cy="50" r="30" fill="none" stroke="#f59e0b" strokeWidth="25" strokeDasharray="34 188.5" strokeDashoffset="-134" />
-              <circle cx="50" cy="50" r="30" fill="none" stroke="#0ea5e9" strokeWidth="25" strokeDasharray="15 188.5" strokeDashoffset="-168" />
-            </svg>
-            <div className="flex flex-col gap-2" style={{ gap: 12 }}>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700" style={{ fontSize: 12, color: "#4b5563" }}><div className="w-3 h-3 rounded-full" style={{ background: "#1e3a8a", width: 12, height: 12 }}></div>전력</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700" style={{ fontSize: 12, color: "#4b5563" }}><div className="w-3 h-3 rounded-full" style={{ background: "#00c49f", width: 12, height: 12 }}></div>압축공기</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700" style={{ fontSize: 12, color: "#4b5563" }}><div className="w-3 h-3 rounded-full" style={{ background: "#f59e0b", width: 12, height: 12 }}></div>LNG</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700" style={{ fontSize: 12, color: "#4b5563" }}><div className="w-3 h-3 rounded-full" style={{ background: "#0ea5e9", width: 12, height: 12 }}></div>스팀</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700" style={{ fontSize: 12, color: "#4b5563" }}><div className="w-3 h-3 rounded-full" style={{ background: "#e5e7eb", width: 12, height: 12 }}></div>기타</div>
+          <div className="flex items-center justify-center gap-5 flex-1">
+            <div className="w-[140px] h-[140px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={45}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => `${((value / 188.5) * 100).toFixed(1)}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-col gap-2">
+              {pieData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <div className="w-3 h-3 rounded-full" style={{ background: entry.color }}></div>
+                  {entry.name}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1001,17 +1066,21 @@ function StandbyWeekdayTab() {
 
 // 7. Standby Weekday Rank Tab
 function StandbyWeekdayRankTab() {
-  const drawW = 380;
-  const drawH = 200;
-  const padX = 110;
-  const padY = 20;
-  const barH = 20;
-
   const worstData = [110.5, 88.4, 75.0, 62.0, 55.4, 50.0, 48.0, 45.0, 42.0, 40.0];
   const worstLabels = ['Pump Station #2', 'Chiller Unit C', 'Comp #5', 'Fan #12', 'Boiler B', 'Exh Fan #3', 'Chiller B', 'Pump Unit D', 'Comp #6', 'Dryer Unit A'];
   
   const topData = [0.5, 0.8, 1.2, 1.5, 1.9, 2.1, 2.3, 2.4, 2.6, 2.8];
   const topLabels = ['Sensor #1', 'LED Room A', 'IoT Gateway', 'Valve C', 'Sub-Meter #3', 'Switch #2', 'IoT Sw #4', 'IoT Sw #2', 'LED Room B', 'Sensor #2'];
+
+  const worstChartData = worstLabels.map((lbl, idx) => ({
+    name: lbl,
+    value: worstData[idx]
+  }));
+
+  const topChartData = topLabels.map((lbl, idx) => ({
+    name: lbl,
+    value: topData[idx]
+  }));
 
   return (
     <div className="flex flex-col gap-5 mt-2">
@@ -1052,48 +1121,38 @@ function StandbyWeekdayRankTab() {
       <div className="flex flex-col lg:flex-row gap-5 items-stretch">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">Worst 10 대기전력 발생 장비 (평일심야)</div>
-          <div style={{ height: 250, position: "relative" }}>
-            <svg viewBox="0 0 500 250" style={{ width: "100%", height: "100%", overflow: "visible" }}>
-              {[0, 20, 40, 60, 80, 100, 120].map((v, idx) => {
-                const x = padX + (v / 120) * drawW;
-                return (
-                  <g key={idx}>
-                    <line x1={x} y1={padY} x2={x} y2={padY + drawH} stroke="#f3f4f6" strokeWidth="1" />
-                    <text x={x} y={padY + drawH + 20} textAnchor="middle" fontSize="11" fill="#9ca3af">{v}</text>
-                  </g>
-                );
-              })}
-              {worstData.map((v, i) => {
-                const w = (v / 120) * drawW;
-                return <rect key={`wbar-${i}`} x={padX} y={padY + i * barH} width={w} height={barH} fill="#ef4444" />;
-              })}
-              {worstLabels.map((lbl, i) => (
-                <text key={i} x={padX - 10} y={padY + i * barH + barH / 2 + 4} textAnchor="end" fontSize="12" fill="#4b5563">{lbl}</text>
-              ))}
-            </svg>
+          <div className="w-full h-[320px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={worstChartData}
+                layout="vertical"
+                margin={{ top: 5, right: 20, left: 15, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                <XAxis type="number" domain={[0, 120]} tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11, fill: "#4b5563" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Bar dataKey="value" name="대기전력" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col flex-1">
           <div className="text-base font-bold text-gray-800 mb-4">TOP 10 대기전력 우수 장비 (평일심야)</div>
-          <div style={{ height: 250, position: "relative" }}>
-            <svg viewBox="0 0 500 250" style={{ width: "100%", height: "100%", overflow: "visible" }}>
-              {[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0].map((v, idx) => {
-                const x = padX + (v / 3.0) * drawW;
-                return (
-                  <g key={idx}>
-                    <line x1={x} y1={padY} x2={x} y2={padY + drawH} stroke="#f3f4f6" strokeWidth="1" />
-                    <text x={x} y={padY + drawH + 20} textAnchor="middle" fontSize="11" fill="#9ca3af">{v.toFixed(1)}</text>
-                  </g>
-                );
-              })}
-              {topData.map((v, i) => {
-                const w = (v / 3.0) * drawW;
-                return <rect key={`tbar-${i}`} x={padX} y={padY + i * barH} width={w} height={barH} fill="#22c55e" />;
-              })}
-              {topLabels.map((lbl, i) => (
-                <text key={i} x={padX - 10} y={padY + i * barH + barH / 2 + 4} textAnchor="end" fontSize="12" fill="#4b5563">{lbl}</text>
-              ))}
-            </svg>
+          <div className="w-full h-[320px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={topChartData}
+                layout="vertical"
+                margin={{ top: 5, right: 20, left: 15, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                <XAxis type="number" domain={[0, 3.0]} tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11, fill: "#4b5563" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Bar dataKey="value" name="대기전력" fill="#22c55e" radius={[0, 4, 4, 0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

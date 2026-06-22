@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from "recharts";
 import type { MeterManagementPageProps, ExpandedNodes } from "../types";
 
 export function MeterManagementPage({ subId = "meterRef" }: MeterManagementPageProps) {
@@ -29,79 +30,6 @@ export function MeterManagementPage({ subId = "meterRef" }: MeterManagementPageP
     { label: "압축공기", value: 8, color: "#d1d5db" },
     { label: "기타", value: 4, color: "#9ca3af" },
   ];
-
-  // Donut SVG generator helper
-  const totalDonut = donutSegments.reduce((s, d) => s + d.value, 0);
-  let accAngle = -90;
-  const donutPaths = donutSegments.map((seg, idx) => {
-    const angle = (seg.value / totalDonut) * 360;
-    const startRad = (accAngle * Math.PI) / 180;
-    const endRad = ((accAngle + angle) * Math.PI) / 180;
-    const cx = 70, cy = 70, r = 60;
-    const x1 = (cx + r * Math.cos(startRad)).toFixed(3);
-    const y1 = (cy + r * Math.sin(startRad)).toFixed(3);
-    const x2 = (cx + r * Math.cos(endRad)).toFixed(3);
-    const y2 = (cy + r * Math.sin(endRad)).toFixed(3);
-    const largeArc = angle > 180 ? 1 : 0;
-    const pathD = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`;
-    accAngle += angle;
-    return <path key={`donut-${idx}`} d={pathD} fill={seg.color} />;
-  });
-
-  // Bar SVG helpers
-  interface BarItem { value: number; label: string; color: string; }
-  const buildBarChart = (bars: BarItem[], w: number, h: number) => {
-    const pL = 38, pR = 12, pT = 14, pB = 24;
-    const aW = w - pL - pR;
-    const aH = h - pT - pB;
-    const maxVal = Math.max(...bars.map((b) => b.value));
-    const barW = (aW / bars.length) * 0.48;
-    const gap = aW / bars.length;
-    const gridVals = [0, Math.round(maxVal * 0.33), Math.round(maxVal * 0.67), maxVal];
-
-    return (
-      <svg className="w-full h-auto max-h-[300px]" viewBox={`0 0 ${w} ${h}`} style={{ display: "block" }}>
-        {gridVals.map((v, i) => {
-          const y = (pT + aH - (v / maxVal) * aH).toFixed(1);
-          return (
-            <g key={`grid-${i}`}>
-              <line x1={pL} x2={w - pR} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-              <text x={pL - 5} y={parseFloat(y) + 4} textAnchor="end" fontSize="12" fill="#4b5563" fontWeight="600">
-                {v > 999 ? (v / 1000).toFixed(1) + "k" : v}
-              </text>
-            </g>
-          );
-        })}
-        {bars.map((b, i) => {
-          const bH = (b.value / maxVal) * aH;
-          const bX = pL + gap * i + (gap - barW) / 2;
-          const bY = pT + aH - bH;
-          return (
-            <g key={`bar-group-${i}`}>
-              <rect
-                x={bX.toFixed(1)}
-                y={bY.toFixed(1)}
-                width={barW.toFixed(1)}
-                height={bH.toFixed(1)}
-                rx="3"
-                fill={b.color}
-              />
-              <text
-                x={(bX + barW / 2).toFixed(1)}
-                y={h - 4}
-                textAnchor="middle"
-                fontSize="12.5"
-                fill="#4b5563"
-                fontWeight="600"
-              >
-                {b.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    );
-  };
 
   // Content Dispatcher
   return (
@@ -202,7 +130,23 @@ export function MeterManagementPage({ subId = "meterRef" }: MeterManagementPageP
               <div className="flex flex-col flex-1 h-[290px]">
                 <div className="text-[13px] font-bold text-gray-700 text-center mb-2">상태별 계측기 현황</div>
                 <div className="flex-1 w-full h-full flex items-end">
-                  {buildBarChart(statusBars, 600, 260)}
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={statusBars} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#4b5563", fontWeight: "600" }} />
+                      <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => v > 999 ? (v / 1000).toFixed(1) + "k" : v} tick={{ fontSize: 11, fill: "#4b5563", fontWeight: "600" }} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                        labelStyle={{ fontWeight: "700", color: "#111827", fontSize: "12px" }}
+                        itemStyle={{ fontSize: "12px", fontWeight: "600" }}
+                      />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {statusBars.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
@@ -219,10 +163,29 @@ export function MeterManagementPage({ subId = "meterRef" }: MeterManagementPageP
                 에너지원별 계측기 분포
               </div>
               <div className="flex items-center justify-center gap-6 mt-2">
-                <svg className="mm-donut-svg" width="120" height="120" viewBox="0 0 140 140">
-                  {donutPaths}
-                  <circle cx="70" cy="70" r="38" fill="#fff" />
-                </svg>
+                <div className="w-[120px] h-[120px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donutSegments}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={36}
+                        outerRadius={56}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {donutSegments.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value) => `${value}%`}
+                        contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "11px" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
                 <div className="flex flex-col gap-2">
                   {donutSegments.map((s, idx) => (
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-700" key={idx}>
@@ -275,14 +238,6 @@ function LinkedTab() {
   const dates = ["3/1", "3/2", "3/3", "3/4", "3/5", "3/6", "3/7", "3/8", "3/9", "3/10"];
   const plan =   [2000,  2050,  1980,  2100,  2000,  2050,  0,     0,     2080,  1950];
   const actual = [1850,  1900,  1870,  1980,  1920,  1870,  0,     0,     1950,  1820];
-  
-  const cW = 920, cH = 240, pL = 32, pR = 15, pT = 14, pB = 28;
-  const aW = cW - pL - pR, aH = cH - pT - pB;
-  const maxV = 2200;
-  const gVals = [0, 500, 1000, 1500, 2000];
-  const ty = (v: number) => pT + aH - (v / maxV) * aH;
-
-  const grpW = aW / dates.length, barW = grpW * 0.3;
 
   // Calendar
   const calRows = [];
@@ -308,14 +263,7 @@ function LinkedTab() {
   // Weather Chart
   const temps = [9.2, 8.8, 9.5, 10.1, 11.2, 11.8, 10.0, 9.5, 11.0, 11.7];
   const solar = [14.5, 13.8, 15.2, 15.8, 16.2, 15.5, 12.5, 13.8, 15.9, 16.8];
-  const wW = 920, wH = 240, wPL = 30, wPR = 30, wPT = 10, wPB = 24;
-  const wAW = wW - wPL - wPR, wAH = wH - wPT - wPB;
   const tMin = 7, tMax = 13, sMin = 11, sMax = 17;
-  const tx2 = (i: number) => wPL + (wAW / (dates.length - 1)) * i;
-  const tyT = (v: number) => wPT + wAH - ((v - tMin) / (tMax - tMin)) * wAH;
-  const tyS = (v: number) => wPT + wAH - ((v - sMin) / (sMax - sMin)) * wAH;
-  const tLine = temps.map((v, i) => `${i === 0 ? "M" : "L"}${tx2(i).toFixed(1)},${tyT(v).toFixed(1)}`).join(" ");
-  const sLine = solar.map((v, i) => `${i === 0 ? "M" : "L"}${tx2(i).toFixed(1)},${tyS(v).toFixed(1)}`).join(" ");
 
   return (
     <div className="flex flex-col">
@@ -343,39 +291,29 @@ function LinkedTab() {
               <span style={{ width: "28px", height: "10px", background: "#1f4c8f", borderRadius: "2px", display: "inline-block" }}></span>실적 수량
             </span>
           </div>
-          <svg className="mes-svg" width="100%" viewBox={`0 0 ${cW} ${cH}`} style={{ overflow: "visible", display: "block" }}>
-            {gVals.map((v, i) => {
-              const y = ty(v).toFixed(1);
-              return (
-                <g key={i}>
-                  <line x1={pL} x2={cW - pR} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={pL - 5} y={parseFloat(y) + 4} textAnchor="end" fontSize="10" fill="#4b5563" fontWeight="600">
-                    {v > 0 ? (v / 1000).toFixed(1) + "k" : 0}
-                  </text>
-                </g>
-              );
-            })}
-            {dates.map((d, i) => {
-              const isWeekend = plan[i] === 0 && actual[i] === 0;
-              const x0 = pL + grpW * i + (grpW - barW * 2 - 2) / 2;
-              const ph = (plan[i] / maxV) * aH;
-              const ah = (actual[i] / maxV) * aH;
-              const pyT = pT + aH - ph;
-              const ayT = pT + aH - ah;
-              const cx = pL + grpW * i + grpW / 2;
-              return (
-                <g key={`bgrp-${i}`}>
-                  {!isWeekend && (
-                    <>
-                      <rect x={x0.toFixed(1)} y={pyT.toFixed(1)} width={barW.toFixed(1)} height={ph.toFixed(1)} rx="2" fill="#93c5fd" />
-                      <rect x={(x0 + barW + 2).toFixed(1)} y={ayT.toFixed(1)} width={barW.toFixed(1)} height={ah.toFixed(1)} rx="2" fill="#1f4c8f" />
-                    </>
-                  )}
-                  <text x={cx.toFixed(1)} y={cH - 6} textAnchor="middle" fontSize="10" fill={isWeekend ? "#9ca3af" : "#4b5563"} fontWeight="600">{d}</text>
-                </g>
-              );
-            })}
-          </svg>
+          <div className="w-full h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={dates.map((d, i) => ({
+                  name: d,
+                  "계획 수량": plan[i] === 0 && actual[i] === 0 ? null : plan[i],
+                  "실적 수량": plan[i] === 0 && actual[i] === 0 ? null : actual[i],
+                }))} 
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                <YAxis tickLine={false} axisLine={false} tickFormatter={(val) => val > 0 ? (val / 1000).toFixed(1) + "k" : "0"} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                  labelStyle={{ fontWeight: "700", color: "#111827", fontSize: "11px" }}
+                  itemStyle={{ fontSize: "11px", fontWeight: "600" }}
+                />
+                <Bar dataKey="계획 수량" fill="#93c5fd" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="실적 수량" fill="#1f4c8f" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* ② 근무시간 캘린더 */}
@@ -474,40 +412,30 @@ function LinkedTab() {
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#14b8a6" }}></span>일사량 (MJ/m²)
             </span>
           </div>
-          <svg className="weather-svg" width="100%" viewBox={`0 0 ${wW} ${wH}`} style={{ overflow: "visible", display: "block" }}>
-            {[tMin, tMax].map((v, i) => {
-              const y = tyT(v).toFixed(1);
-              return (
-                <g key={`wgrid-${i}`}>
-                  <line x1={wPL} x2={wW - wPR} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={wPL - 4} y={parseFloat(y) + 4} textAnchor="end" fontSize="10" fill="#4b5563" fontWeight="600">
-                    {v}
-                  </text>
-                </g>
-              );
-            })}
-            {[sMin, sMax].map((v, i) => {
-              const y = tyS(v).toFixed(1);
-              return (
-                <text key={`sgrid-${i}`} x={wW - wPR + 5} y={parseFloat(y) + 4} textAnchor="start" fontSize="10" fill="#4b5563" fontWeight="600">
-                  {v}
-                </text>
-              );
-            })}
-            <path d={tLine} fill="none" stroke="#f59e0b" strokeWidth="2" />
-            <path d={sLine} fill="none" stroke="#14b8a6" strokeWidth="2" />
-            {temps.map((v, i) => (
-              <circle key={`tc-${i}`} cx={tx2(i).toFixed(1)} cy={tyT(v).toFixed(1)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1.5" />
-            ))}
-            {solar.map((v, i) => (
-              <circle key={`sc-${i}`} cx={tx2(i).toFixed(1)} cy={tyS(v).toFixed(1)} r="3" fill="#14b8a6" stroke="#fff" strokeWidth="1.5" />
-            ))}
-            {dates.map((d, i) => (
-              <text key={`wlx-${i}`} x={tx2(i).toFixed(1)} y={wH - 4} textAnchor="middle" fontSize="10" fill="#4b5563" fontWeight="600">
-                {d}
-              </text>
-            ))}
-          </svg>
+          <div className="w-full h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart 
+                data={dates.map((d, i) => ({
+                  name: d,
+                  "기온 (℃)": temps[i],
+                  "일사량 (MJ/m²)": solar[i],
+                }))} 
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} domain={[tMin - 1, tMax + 1]} />
+                <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} domain={[sMin - 1, sMax + 1]} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                  labelStyle={{ fontWeight: "700", color: "#111827", fontSize: "11px" }}
+                  itemStyle={{ fontSize: "11px", fontWeight: "600" }}
+                />
+                <Line yAxisId="left" type="monotone" dataKey="기온 (℃)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                <Line yAxisId="right" type="monotone" dataKey="일사량 (MJ/m²)" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>
@@ -519,26 +447,12 @@ function ReportTab() {
   const days = ["1일", "5일", "10일", "15일", "20일", "25일", "30일"];
   const actual = [355, 362, 348, 344, 352, 345, null];
   const pred = [358, 360, 350, 346, 354, 348, 358];
-  
-  const eW = 500, eH = 260, ePL = 44, ePR = 14, ePT = 14, ePB = 28;
-  const eAW = eW - ePL - ePR, eAH = eH - ePT - ePB;
   const eMin = 300, eMax = 410;
-  const etx = (i: number) => ePL + (eAW / (days.length - 1)) * i;
-  const ety = (v: number) => ePT + eAH - ((v - eMin) / (eMax - eMin)) * eAH;
-
-  const actPath = actual.filter((v) => v != null).map((v, i) => `${i === 0 ? "M" : "L"}${etx(i).toFixed(1)},${ety(v as number).toFixed(1)}`).join(" ");
-  const predPath = pred.map((v, i) => `${i === 0 ? "M" : "L"}${etx(i).toFixed(1)},${ety(v).toFixed(1)}`).join(" ");
 
   // Solar Curve Chart
   const hours = ["06시", "09시", "12시", "15시", "18시"];
   const solarGen = [20, 350, 900, 700, 80];
-  const sW = 500, sH = 260, sPL = 44, sPR = 14, sPT = 14, sPB = 28;
-  const sAW = sW - sPL - sPR, sAH = sH - sPT - sPB;
   const sMax = 1000;
-  const stx = (i: number) => sPL + (sAW / (hours.length - 1)) * i;
-  const sty = (v: number) => sPT + sAH - (v / sMax) * sAH;
-  const sPath = solarGen.map((v, i) => `${i === 0 ? "M" : "L"}${stx(i).toFixed(1)},${sty(v).toFixed(1)}`).join(" ");
-  const sArea = `${sPath} L${stx(hours.length - 1).toFixed(1)},${(sPT + sAH).toFixed(1)} L${sPL},${(sPT + sAH).toFixed(1)} Z`;
 
   // Energy bars
   const energyBars = [
@@ -547,11 +461,6 @@ function ReportTab() {
     { label: "스팀", value: 28, color: "#14b8a6" },
     { label: "압축공기", value: 64, color: "#6b7280" },
   ];
-  const bW = 500, bH = 260, bPL = 44, bPR = 14, bPT = 14, bPB = 28;
-  const bAW = bW - bPL - bPR, bAH = bH - bPT - bPB;
-  const bMax = 100;
-  const bGap = bAW / energyBars.length;
-  const bBarW = bGap * 0.5;
 
   const reports = [
     { dt: "2026-03-31 13:45", type: "예측 분석", title: "2026년 3월 전력 사용량 및 태양광 생산량 예측 리포트", status: "완료", dl: "PDF", tagCls: "mm-tag-forecast" },
@@ -572,33 +481,30 @@ function ReportTab() {
           {/* 전력 사용량 예측 */}
           <div className="flex flex-col">
             <div className="text-sm font-bold text-gray-700 mb-3 text-center">전력 사용량 예측</div>
-            <svg className="report-svg" width="100%" viewBox={`0 0 ${eW} ${eH}`} style={{ overflow: "visible", display: "block" }}>
-              {[300, 340, 380].map((v, idx) => {
-                const y = ety(v).toFixed(1);
-                return (
-                  <g key={idx}>
-                    <line x1={ePL} x2={eW - ePR} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                    <text x={ePL - 4} y={parseFloat(y) + 4} textAnchor="end" fontSize="10" fill="#4b5563" fontWeight="600">
-                      {v}
-                    </text>
-                  </g>
-                );
-              })}
-              {days.map((d, i) => (
-                <text key={`ex-${i}`} x={etx(i).toFixed(1)} y={eH - 5} textAnchor="middle" fontSize="10" fill="#4b5563" fontWeight="600">
-                  {d}
-                </text>
-              ))}
-              <path d={actPath} fill="none" stroke="#1f4c8f" strokeWidth="2" />
-              <path d={predPath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5 3" />
-              {actual.filter((v) => v != null).map((v, i) => (
-                <circle key={`act-${i}`} cx={etx(i).toFixed(1)} cy={ety(v).toFixed(1)} r="3" fill="#1f4c8f" stroke="#fff" strokeWidth="1.5" />
-              ))}
-              {pred.map((v, i) => (
-                <circle key={`pr-${i}`} cx={etx(i).toFixed(1)} cy={ety(v).toFixed(1)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1.5" />
-              ))}
-            </svg>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "#4b5563", marginTop: "2px" }}>
+            <div className="w-full h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart 
+                  data={days.map((d, i) => ({
+                    name: d,
+                    "실제 사용량 (MWh)": actual[i],
+                    "AI 예측 (MWh)": pred[i],
+                  }))} 
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                  <YAxis tickLine={false} axisLine={false} domain={[eMin, eMax]} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                    labelStyle={{ fontWeight: "700", color: "#111827", fontSize: "11px" }}
+                    itemStyle={{ fontSize: "11px", fontWeight: "600" }}
+                  />
+                  <Line type="monotone" dataKey="실제 사용량 (MWh)" stroke="#1f4c8f" strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="AI 예측 (MWh)" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "#4b5563", marginTop: "8px" }}>
               <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ width: "20px", height: "3px", background: "#1f4c8f", display: "inline-block" }}></span>실제 사용량 (MWh)
               </span>
@@ -611,36 +517,34 @@ function ReportTab() {
           {/* 태양광 생산량 예측 */}
           <div className="flex flex-col">
             <div className="text-sm font-bold text-gray-700 mb-3 text-center">태양광 생산량 예측 (일일)</div>
-            <svg className="report-svg" width="100%" viewBox={`0 0 ${sW} ${sH}`} style={{ overflow: "visible", display: "block" }}>
-              <defs>
-                <linearGradient id="solGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#16a34a" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#16a34a" stopOpacity="0.03" />
-                </linearGradient>
-              </defs>
-              {[0, 500, 1000].map((v, idx) => {
-                const y = sty(v).toFixed(1);
-                return (
-                  <g key={idx}>
-                    <line x1={sPL} x2={sW - sPR} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                    <text x={sPL - 4} y={parseFloat(y) + 4} textAnchor="end" fontSize="10" fill="#4b5563" fontWeight="600">
-                      {v}
-                    </text>
-                  </g>
-                );
-              })}
-              {hours.map((h, i) => (
-                <text key={`sh-${i}`} x={stx(i).toFixed(1)} y={sH - 5} textAnchor="middle" fontSize="10" fill="#4b5563" fontWeight="600">
-                  {h}
-                </text>
-              ))}
-              <path d={sArea} fill="url(#solGrad)" />
-              <path d={sPath} fill="none" stroke="#16a34a" strokeWidth="2" />
-              {solarGen.map((v, i) => (
-                <circle key={`sol-${i}`} cx={stx(i).toFixed(1)} cy={sty(v).toFixed(1)} r="3" fill="#16a34a" stroke="#fff" strokeWidth="1.5" />
-              ))}
-            </svg>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "#4b5563", marginTop: "2px" }}>
+            <div className="w-full h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart 
+                  data={hours.map((h, i) => ({
+                    name: h,
+                    "예측 발전량 (kWh)": solarGen[i],
+                  }))} 
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="solGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16a34a" stopOpacity="0.25" />
+                      <stop offset="95%" stopColor="#16a34a" stopOpacity="0.03" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                  <YAxis tickLine={false} axisLine={false} domain={[0, sMax]} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                    labelStyle={{ fontWeight: "700", color: "#111827", fontSize: "11px" }}
+                    itemStyle={{ fontSize: "11px", fontWeight: "600" }}
+                  />
+                  <Area type="monotone" dataKey="예측 발전량 (kWh)" stroke="#16a34a" fillOpacity={1} fill="url(#solGrad)" strokeWidth={2} dot={{ r: 3 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "#4b5563", marginTop: "8px" }}>
               <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ width: "20px", height: "3px", background: "#16a34a", display: "inline-block" }}></span>예측 발전량 (kWh)
               </span>
@@ -650,33 +554,25 @@ function ReportTab() {
           {/* 에너지원별 분석 */}
           <div className="flex flex-col">
             <div className="text-sm font-bold text-gray-700 mb-3 text-center">에너지원별 분석</div>
-            <svg className="report-svg" width="100%" viewBox={`0 0 ${bW} ${bH}`} style={{ overflow: "visible", display: "block" }}>
-              {[0, 50, 100].map((v, idx) => {
-                const y = (bPT + bAH - (v / bMax) * bAH).toFixed(1);
-                return (
-                  <g key={idx}>
-                    <line x1={bPL} x2={bW - bPR} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                    <text x={bPL - 4} y={parseFloat(y) + 4} textAnchor="end" fontSize="10" fill="#4b5563" fontWeight="600">
-                      {v}
-                    </text>
-                  </g>
-                );
-              })}
-              {energyBars.map((b, i) => {
-                const bx = bPL + bGap * i + (bGap - bBarW) / 2;
-                const bh = (b.value / bMax) * bAH;
-                const by = bPT + bAH - bh;
-                const lx = bPL + bGap * i + bGap / 2;
-                return (
-                  <g key={i}>
-                    <rect x={bx.toFixed(1)} y={by.toFixed(1)} width={bBarW.toFixed(1)} height={bh.toFixed(1)} rx="3" fill={b.color} />
-                    <text x={lx.toFixed(1)} y={bH - 5} textAnchor="middle" fontSize="10" fill="#4b5563" fontWeight="600">
-                      {b.label}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
+            <div className="w-full h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={energyBars} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                  <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                    labelStyle={{ fontWeight: "700", color: "#111827", fontSize: "11px" }}
+                    itemStyle={{ fontSize: "11px", fontWeight: "600" }}
+                  />
+                  <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                    {energyBars.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
@@ -733,19 +629,7 @@ function AnalysisTab() {
     { x: 1560, y: 1110 }, { x: 1570, y: 1120 }, { x: 1580, y: 1090 }, { x: 1590, y: 1130 }, { x: 1600, y: 1120 },
   ];
 
-  const cW = 1600, cH = 420;
-  const pL = 70, pR = 25, pT = 20, pB = 50;
   const xMin = 700, xMax = 1700, yMin = 500, yMax = 1300;
-  const xScale = (cW - pL - pR) / (xMax - xMin);
-  const yScale = (cH - pT - pB) / (yMax - yMin);
-  const px = (x: number) => pL + (x - xMin) * xScale;
-  const py = (y: number) => cH - pB - (y - yMin) * yScale;
-
-  const regLine = [[xMin, 0.46 * xMin + 332], [xMax, 0.46 * xMax + 332]];
-  const regPath = `M${px(regLine[0][0]).toFixed(1)},${py(regLine[0][1]).toFixed(1)} L${px(regLine[1][0]).toFixed(1)},${py(regLine[1][1]).toFixed(1)}`;
-
-  const xTicks = [800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600];
-  const yTicks = [600, 700, 800, 900, 1000, 1100, 1200, 1300];
 
   return (
     <div className="flex flex-col">
@@ -811,57 +695,50 @@ function AnalysisTab() {
               회귀선 (Trend)
             </span>
           </div>
-          <svg className="w-full h-auto" viewBox={`0 0 ${cW} ${cH}`} style={{ overflow: "visible", display: "block" }}>
-            {yTicks.map((v, i) => {
-              const yVal = py(v);
-              return (
-                <g key={`ygrid-${i}`}>
-                  <line x1={pL} x2={cW - pR} y1={yVal.toFixed(1)} y2={yVal.toFixed(1)} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={pL - 8} y={(yVal + 4).toFixed(1)} textAnchor="end" fontSize="11" fill="#4b5563" fontWeight="600">
-                    {v}
-                  </text>
-                </g>
-              );
-            })}
-            {xTicks.map((v, i) => {
-              const xVal = px(v);
-              return (
-                <g key={`xgrid-${i}`}>
-                  <line x1={xVal.toFixed(1)} x2={xVal.toFixed(1)} y1={pT} y2={cH - pB} stroke="#f1f5f9" strokeWidth="1" />
-                  <text x={xVal.toFixed(1)} y={cH - pB + 16} textAnchor="middle" fontSize="11" fill="#4b5563" fontWeight="600">
-                    {v}
-                  </text>
-                </g>
-              );
-            })}
-            {points.map((p, idx) => (
-              <circle
-                key={`p-${idx}`}
-                cx={px(p.x).toFixed(1)}
-                cy={py(p.y).toFixed(1)}
-                r="5"
-                fill="#3b82f6"
-                fillOpacity="0.75"
-                stroke="#fff"
-                strokeWidth="1.2"
-              />
-            ))}
-            <path d={regPath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="7 4" />
-            <text x={(pL + (cW - pL - pR) / 2).toFixed(1)} y={cH - 6} textAnchor="middle" fontSize="12" fill="#374151" fontWeight="700">
-              생산대수 (EA)
-            </text>
-            <text
-              x="16"
-              y={(pT + (cH - pT - pB) / 2).toFixed(1)}
-              textAnchor="middle"
-              fontSize="12"
-              fill="#374151"
-              fontWeight="700"
-              transform={`rotate(-90, 16, ${(pT + (cH - pT - pB) / 2).toFixed(1)})`}
-            >
-              전력 사용량 (kWh)
-            </text>
-          </svg>
+          <div className="w-full h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 10, right: 20, left: -20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis 
+                  type="number" 
+                  dataKey="x" 
+                  name="생산대수" 
+                  unit="EA" 
+                  domain={[xMin, xMax]} 
+                  tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{ value: "생산대수 (EA)", position: "insideBottom", offset: -5, style: { fontSize: 12, fill: "#374151", fontWeight: "700" } }}
+                />
+                <YAxis 
+                  type="number" 
+                  dataKey="y" 
+                  name="전력 사용량" 
+                  unit="kWh" 
+                  domain={[yMin, yMax]} 
+                  tick={{ fontSize: 10, fill: "#4b5563", fontWeight: "600" }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{ value: "전력 사용량 (kWh)", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 12, fill: "#374151", fontWeight: "700" } }}
+                />
+                <Tooltip 
+                  cursor={{ strokeDasharray: "3 3" }} 
+                  contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                />
+                <Scatter name="실측 데이터" data={points} fill="#3b82f6" fillOpacity={0.75} shape="circle" />
+                <Scatter 
+                  name="회귀선 (Trend)" 
+                  data={[
+                    { x: xMin, y: Math.round(0.46 * xMin + 332) },
+                    { x: xMax, y: Math.round(0.46 * xMax + 332) }
+                  ]} 
+                  fill="#f59e0b" 
+                  line={{ stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '7 4' }}
+                  shape={() => null}
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* 분석 요약 패널 */}

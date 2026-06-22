@@ -1,30 +1,17 @@
 import { useState, Fragment } from "react";
 import type { MailingUser, CorrectionReq } from "../types";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Line } from "recharts";
 
 export function SystemManagerPage() {
   const dates = ["3/25", "3/26", "3/27", "3/28", "3/29", "3/30", "3/31"];
   const success = [120, 120, 125, 120, 115, 40, 128];
   const failure = [0, 0, 1, 0, 2, 5, 3];
 
-  const cW = 1100;
-  const cH = 220;
-  const pL = 48;
-  const pR = 18;
-  const pT = 16;
-  const pB = 32;
-  const aW = cW - pL - pR;
-  const aH = cH - pT - pB;
-  const dMax = 135;
-  const dMin = 0;
-
-  const tx = (i: number) => pL + (aW / (dates.length - 1)) * i;
-  const ty = (v: number) => pT + aH - ((v - dMin) / (dMax - dMin)) * aH;
-
-  const sLine = success.map((v, i) => `${i === 0 ? 'M' : 'L'}${tx(i).toFixed(1)},${ty(v).toFixed(1)}`).join(" ");
-  const fLine = failure.map((v, i) => `${i === 0 ? 'M' : 'L'}${tx(i).toFixed(1)},${ty(v).toFixed(1)}`).join(" ");
-  const sArea = `${sLine} L${tx(dates.length - 1).toFixed(1)},${(pT + aH).toFixed(1)} L${pL},${(pT + aH).toFixed(1)} Z`;
-
-  const gridVals = [0, 40, 80, 120];
+  const chartData = dates.map((date, idx) => ({
+    name: date,
+    success: success[idx],
+    failure: failure[idx]
+  }));
 
   const [mailingList, setMailingList] = useState<MailingUser[]>([
     { id: 1, group: "경영진 보고", receiver: "홍길동 상무", email: "hong.gd@hyundai.com", active: true },
@@ -87,33 +74,33 @@ export function SystemManagerPage() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
           <div className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">👥 메일링 리스트 (수신적용대상)</div>
           <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">그룹명</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">수신자</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">이메일</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">상태 (토글 가능)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mailingList.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.group}</td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.receiver}</td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-blue-500 font-medium">{r.email}</td>
-                  <td className="px-4 py-3 border-b border-gray-100">
-                    <span
-                      className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold cursor-pointer transition-colors ${r.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
-                      onClick={() => handleToggleMailing(r.id)}
-                    >
-                      {r.active ? "활성" : "중지"}
-                    </span>
-                  </td>
+            <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">그룹명</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">수신자</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">이메일</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">상태 (토글 가능)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {mailingList.map((r) => (
+                  <tr key={r.id}>
+                    <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.group}</td>
+                    <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.receiver}</td>
+                    <td className="px-4 py-3 border-b border-gray-100 text-blue-500 font-medium">{r.email}</td>
+                    <td className="px-4 py-3 border-b border-gray-100">
+                      <span
+                        className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold cursor-pointer transition-colors ${r.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                        onClick={() => handleToggleMailing(r.id)}
+                      >
+                        {r.active ? "활성" : "중지"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -131,49 +118,25 @@ export function SystemManagerPage() {
               <span className="w-3 h-3 rounded-sm bg-red-600"></span>실패
             </span>
           </div>
-          <svg className="w-full h-[240px] block overflow-visible" viewBox={`0 0 ${cW} ${cH}`}>
-            <defs>
-              <linearGradient id="smpSuccessGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#16a34a" stopOpacity="0.18" />
-                <stop offset="100%" stopColor="#16a34a" stopOpacity="0.02" />
-              </linearGradient>
-            </defs>
-            {gridVals.map((v) => {
-              const y = ty(v).toFixed(1);
-              return (
-                <g key={`smp-y-${v}`}>
-                  <line x1={pL} x2={cW - pR} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={pL - 6} y={parseFloat(y) + 4} textAnchor="end" fontSize="10" fill="#4b5563" fontWeight="600">
-                    {v}
-                  </text>
-                </g>
-              );
-            })}
-            <path d={sArea} fill="url(#smpSuccessGrad)" />
-            <path d={sLine} fill="none" stroke="#16a34a" strokeWidth="2.5" />
-            <path d={fLine} fill="none" stroke="#dc2626" strokeWidth="2" strokeDasharray="4 3" />
-            
-            {success.map((v, i) => (
-              <circle key={`sc-${i}`} cx={tx(i).toFixed(1)} cy={ty(v).toFixed(1)} r="4" fill="#16a34a" stroke="#fff" strokeWidth="2" />
-            ))}
-            {failure.map((v, i) => (
-              <circle key={`fc-${i}`} cx={tx(i).toFixed(1)} cy={ty(v).toFixed(1)} r="4" fill="#dc2626" stroke="#fff" strokeWidth="2" />
-            ))}
-
-            {dates.map((d, i) => (
-              <text
-                key={`lbl-${i}`}
-                x={tx(i).toFixed(1)}
-                y={cH - 6}
-                textAnchor="middle"
-                fontSize="10"
-                fill="#4b5563"
-                fontWeight="600"
-              >
-                {d}
-              </text>
-            ))}
-          </svg>
+          
+          <div className="w-full h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: -5, left: -30, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="smpSuccessGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#16a34a" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="#16a34a" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 135]} tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Area type="monotone" dataKey="success" name="성공" stroke="#16a34a" strokeWidth={2.5} fillOpacity={1} fill="url(#smpSuccessGrad)" dot={{ r: 3, fill: "#16a34a", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="failure" name="실패" stroke="#dc2626" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 3, fill: "#dc2626", strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* ③ 데이터 자동보정 현황 */}
@@ -207,38 +170,38 @@ export function SystemManagerPage() {
             <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors" onClick={handleAddRequest}>+ 보정 요청</button>
           </div>
           <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">일자</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">대상</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">보정전</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">보정후</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">사유</th>
-                <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {corrections.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.date}</td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800 font-bold">{r.target}</td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-500">{r.before}</td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800 font-bold">{r.after}</td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.reason}</td>
-                  <td className="px-4 py-3 border-b border-gray-100">
-                    <span
-                      className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold ${r.pending ? "bg-yellow-100 text-yellow-700 cursor-pointer" : "bg-blue-100 text-blue-700"}`}
-                      title={r.pending ? "클릭 시 보정 승인" : ""}
-                      onClick={() => r.pending && handleApproveCorrection(r.id)}
-                    >
-                      {r.pending ? "승인대기" : "승인완료"}
-                    </span>
-                  </td>
+            <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">일자</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">대상</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">보정전</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">보정후</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">사유</th>
+                  <th className="px-4 py-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">상태</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {corrections.map((r) => (
+                  <tr key={r.id}>
+                    <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.date}</td>
+                    <td className="px-4 py-3 border-b border-gray-100 text-gray-800 font-bold">{r.target}</td>
+                    <td className="px-4 py-3 border-b border-gray-100 text-gray-500">{r.before}</td>
+                    <td className="px-4 py-3 border-b border-gray-100 text-gray-800 font-bold">{r.after}</td>
+                    <td className="px-4 py-3 border-b border-gray-100 text-gray-800">{r.reason}</td>
+                    <td className="px-4 py-3 border-b border-gray-100">
+                      <span
+                        className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold ${r.pending ? "bg-yellow-100 text-yellow-700 cursor-pointer" : "bg-blue-100 text-blue-700"}`}
+                        title={r.pending ? "클릭 시 보정 승인" : ""}
+                        onClick={() => r.pending && handleApproveCorrection(r.id)}
+                      >
+                        {r.pending ? "승인대기" : "승인완료"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

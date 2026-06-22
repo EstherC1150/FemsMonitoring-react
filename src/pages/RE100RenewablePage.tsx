@@ -1,41 +1,23 @@
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Line } from "recharts";
 
 export function RE100RenewablePage() {
-  const chartW = 1600;
-  const chartH = 240;
-  const padX = 48;
-  const padY = 45;
-
-  const xStep = (chartW - padX * 2) / 30;
-
   // 1) Solar Data
-  const solarMax = 1500;
   const solarGen = [800, 850, 950, 1100, 1200, 1150, 500, 320, 900, 950, 1000, 1150, 1200, 1100, 950, 850, 750, 450, 350, 850, 950, 1000, 1050, 1150, 1250, 1150, 950, 850, 900, 1050, 1100];
   const solarUse = [800, 820, 900, 950, 980, 950, 480, 300, 850, 880, 950, 980, 1000, 950, 850, 800, 700, 400, 320, 800, 850, 900, 950, 980, 1000, 950, 850, 800, 850, 900, 950];
 
-  const getSolarX = (i: number) => padX + xStep * i;
-  const getSolarGenY = (val: number) => chartH - padY - (val / solarMax) * (chartH - padY * 2);
-  const getSolarUseY = (val: number) => chartH - padY - (val / solarMax) * (chartH - padY * 2);
-
-  const solarGenPath = solarGen.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getSolarX(i)} ${getSolarGenY(v)}`).join(' ');
-  const solarUsePath = solarUse.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getSolarX(i)} ${getSolarUseY(v)}`).join(' ');
-
-  let solarAreaPath = solarGen.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getSolarX(i)} ${getSolarGenY(v)}`).join(' ');
-  solarAreaPath += ` L ${padX + xStep * 30} ${chartH - padY} L ${padX} ${chartH - padY} Z`;
+  const solarData = solarGen.map((gen, idx) => ({
+    day: `${idx + 1}일`,
+    gen: gen,
+    use: solarUse[idx]
+  }));
 
   // 2) PPA Data
-  const ppaMax = 2000;
-  const ppaLimit = 2100;
   const ppaUse = [1200, 1300, 1400, 1450, 1500, 1100, 850, 1300, 1400, 1550, 1600, 1650, 1700, 1600, 1500, 1400, 1200, 950, 1350, 1450, 1500, 1600, 1750, 1900, 2100, 1800, 1650, 1500, 1400, 1550, 1600];
 
-  const getPpaX = (i: number) => padX + xStep * i;
-  const getPpaY = (val: number) => chartH - padY - (val / ppaMax) * (chartH - padY * 2);
-
-  const ppaPath = ppaUse.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getPpaX(i)} ${getPpaY(v)}`).join(' ');
-  
-  let ppaAreaPath = ppaUse.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getPpaX(i)} ${getPpaY(v)}`).join(' ');
-  ppaAreaPath += ` L ${padX + xStep * 30} ${chartH - padY} L ${padX} ${chartH - padY} Z`;
-
-  const cyLimit = chartH - padY - (ppaLimit / ppaMax) * (chartH - padY * 2);
+  const ppaData = ppaUse.map((val, idx) => ({
+    day: `${idx + 1}일`,
+    value: val
+  }));
 
   return (
     <div className="flex flex-col gap-6 p-1">
@@ -86,38 +68,24 @@ export function RE100RenewablePage() {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: "#0ea5e9", background: "white" }}></div> 자가 소비량 (kWh)</div>
           </div>
           
-          <svg className="w-full h-auto max-h-[320px]" viewBox={`0 0 ${chartW} ${chartH}`} style={{ overflow: "visible" }}>
-            {/* Grid & Y Axis */}
-            {[0, 500, 1000, 1500].map((val) => {
-              const y = chartH - padY - (val / solarMax) * (chartH - padY * 2);
-              return (
-                <g key={`y-grid-${val}`}>
-                  <line x1={padX} x2={chartW - padX} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={padX - 5} y={y + 4} textAnchor="end" fontSize="11" fill="#6b7280">{val}</text>
-                </g>
-              );
-            })}
-            
-            {/* Area */}
-            <path d={solarAreaPath} fill="#fef3c7" opacity="0.5" />
-            
-            {/* Lines */}
-            <path d={solarGenPath} fill="none" stroke="#f59e0b" strokeWidth="2" />
-            <path d={solarUsePath} fill="none" stroke="#0ea5e9" strokeWidth="2" strokeDasharray="4 4" />
-            
-            {/* Points */}
-            {solarGen.map((v, i) => (
-              <circle key={`pt-${i}`} cx={getSolarX(i)} cy={getSolarGenY(v)} r="3" fill="#f59e0b" />
-            ))}
-
-            {/* X Axis */}
-            {[1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31].map((d) => {
-              const cx = padX + xStep * (d - 1);
-              return (
-                <text key={`x-lbl-${d}`} x={cx} y={chartH - padY + 15} textAnchor="middle" fontSize="11" fill="#6b7280">{d}일</text>
-              );
-            })}
-          </svg>
+          <div className="w-full h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={solarData} margin={{ top: 10, right: -5, left: -25, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="colorSolarGen" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 1500]} tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Area type="monotone" dataKey="gen" name="일별 발전량" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorSolarGen)" dot={{ r: 3, fill: "#f59e0b", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="use" name="자가 소비량" stroke="#0ea5e9" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
@@ -164,40 +132,24 @@ export function RE100RenewablePage() {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: "#ef4444", background: "white" }}></div> 계약 한도 (kWh)</div>
           </div>
           
-          <svg className="w-full h-auto max-h-[320px]" viewBox={`0 0 ${chartW} ${chartH}`} style={{ overflow: "visible" }}>
-            {/* Grid & Y Axis */}
-            {[0, 1000, 2000].map((val) => {
-              const y = chartH - padY - (val / ppaMax) * (chartH - padY * 2);
-              return (
-                <g key={`ppa-y-${val}`}>
-                  <line x1={padX} x2={chartW - padX} y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                  <text x={padX - 5} y={y + 4} textAnchor="end" fontSize="11" fill="#6b7280">{val}</text>
-                </g>
-              );
-            })}
-            
-            {/* Area */}
-            <path d={ppaAreaPath} fill="#dcfce7" opacity="0.5" />
-            
-            {/* Lines */}
-            <path d={ppaPath} fill="none" stroke="#16a34a" strokeWidth="2" />
-            
-            {/* Limit Line */}
-            <line x1={padX} x2={chartW - padX} y1={cyLimit} y2={cyLimit} stroke="#ef4444" strokeWidth="1" strokeDasharray="4 4" />
-
-            {/* Points */}
-            {ppaUse.map((v, i) => (
-              <circle key={`ppa-pt-${i}`} cx={getPpaX(i)} cy={getPpaY(v)} r="3" fill="#16a34a" />
-            ))}
-
-            {/* X Axis */}
-            {[1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31].map((d) => {
-              const cx = padX + xStep * (d - 1);
-              return (
-                <text key={`ppa-x-lbl-${d}`} x={cx} y={chartH - padY + 15} textAnchor="middle" fontSize="11" fill="#6b7280">{d}일</text>
-              );
-            })}
-          </svg>
+          <div className="w-full h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={ppaData} margin={{ top: 10, right: -5, left: -20, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="colorPpa" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#16a34a" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 2200]} tick={{ fontSize: 11, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Area type="monotone" dataKey="value" name="PPA 일별 사용량" stroke="#16a34a" strokeWidth={2} fillOpacity={1} fill="url(#colorPpa)" dot={{ r: 3, fill: "#16a34a", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                <ReferenceLine y={2100} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "계약 한도 (2,100 kWh)", position: "top", fill: "#ef4444", fontSize: 11, fontWeight: "bold" }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>
